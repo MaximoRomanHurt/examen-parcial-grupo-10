@@ -1,0 +1,16 @@
+REPORTE - EJECUCIÓN SERIAL
+==========================================
+Arquitectura: un solo procesador lógico.
+Archivos procesados: 16
+Tiempo total: 551.479 ms
+
+Registros procesados: 400000
+Consumo promedio: 141.7712 kWh
+Consumo mínimo: 44.6300 kWh
+Consumo máximo: 247.1100 kWh
+
+Correlaciones de Pearson:
+- Temperatura vs consumo: 0.8688
+- Personas vs consumo: 0.9877
+- Equipos encendidos vs consumo: 0.9886
+- Humedad vs consumo: -0.7409

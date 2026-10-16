@@ -1,0 +1,35 @@
+REPORTE - EJECUCIÓN PARALELA
+==========================================
+Arquitectura: Application Server + DB Server + Nodos.
+Tiempo total paralelo: 188.673 ms
+
+PLAN DE BALANCEO DE CARGA
+------------------------------------------
+Nodo 1 | velocidad: 60 MB/s | capacidad: 10.00 MB | asignado: 2.06 MB | archivos: 2
+Nodo 2 | velocidad: 120 MB/s | capacidad: 15.00 MB | asignado: 4.13 MB | archivos: 4
+Nodo 3 | velocidad: 90 MB/s | capacidad: 12.00 MB | asignado: 3.10 MB | archivos: 3
+Nodo 4 | velocidad: 200 MB/s | capacidad: 20.00 MB | asignado: 7.22 MB | archivos: 7
+
+RESULTADOS POR NODO
+------------------------------------------
+Nodo 1 | archivos: 2 | procesado: 2.06 MB | tiempo: 70.216 ms
+Nodo 2 | archivos: 4 | procesado: 4.13 MB | tiempo: 112.471 ms
+Nodo 3 | archivos: 3 | procesado: 3.10 MB | tiempo: 98.539 ms
+Nodo 4 | archivos: 7 | procesado: 7.22 MB | tiempo: 132.979 ms
+
+RESULTADO GLOBAL COMBINADO
+------------------------------------------
+Registros procesados: 400000
+Consumo promedio: 141.7712 kWh
+Consumo mínimo: 44.6300 kWh
+Consumo máximo: 247.1100 kWh
+
+Correlaciones de Pearson:
+- Temperatura vs consumo: 0.8688
+- Personas vs consumo: 0.9877
+- Equipos encendidos vs consumo: 0.9886
+- Humedad vs consumo: -0.7409
+
+NOTA DE MEMORIA
+------------------------------------------
+Los registros del dataset no fueron cargados completamente en memoria. Cada archivo CSV fue leído secuencialmente, línea por línea.
