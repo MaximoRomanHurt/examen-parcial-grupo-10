@@ -6,38 +6,149 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingWorker;
+import javax.swing.SwingUtilities;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.Font;
 
 // Ejecuta los procesos de archivos en serie y con dependencias paralelas.
 class Main {
-	private static final int CANTIDAD_POR_DEFECTO = 500_000;
+	private static final int CANTIDAD_POR_DEFECTO = 1000_000;
 	static final int HILOS = 2;
 
 	public static void main(String[] args) throws IOException {
-		int cantidad = args.length == 0 ? CANTIDAD_POR_DEFECTO : Integer.parseInt(args[0]);
+		if (args.length == 0) {
+			SwingUtilities.invokeLater(Main::mostrarVentana);
+			return;
+		}
+
+		int cantidad = Integer.parseInt(args[0]);
 		if (cantidad < 1) {
 			throw new IllegalArgumentException("N debe ser mayor que cero");
 		}
 		Files.createDirectories(Path.of("datos-ejercicio-1"));
+		ejecutarProcesos(cantidad, System.out::println);
+	}
+
+	private static void mostrarVentana() {
+		JFrame ventana = new JFrame("Procesamiento de archivos");
+		ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		ventana.setSize(620, 440);
+		ventana.setLocationRelativeTo(null);
+
+		JTextField campoCantidad = new JTextField(Integer.toString(CANTIDAD_POR_DEFECTO), 10);
+		JButton botonEjecutar = new JButton("Ejecutar");
+		JProgressBar progreso = new JProgressBar(0, 16);
+		progreso.setStringPainted(true);
+		progreso.setString("0 / 16 procesos");
+		JTextArea registro = new JTextArea();
+		registro.setEditable(false);
+		registro.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+
+		JPanel controles = new JPanel(new FlowLayout(FlowLayout.LEFT));
+		controles.add(new JLabel("Líneas por archivo:"));
+		controles.add(campoCantidad);
+		controles.add(botonEjecutar);
+
+		JPanel contenido = new JPanel(new BorderLayout(8, 8));
+		contenido.add(controles, BorderLayout.NORTH);
+		contenido.add(new JScrollPane(registro), BorderLayout.CENTER);
+		contenido.add(progreso, BorderLayout.SOUTH);
+		ventana.setContentPane(contenido);
+
+		botonEjecutar.addActionListener(evento -> {
+			int cantidad;
+			try {
+				cantidad = Integer.parseInt(campoCantidad.getText().trim());
+				if (cantidad < 1) {
+					throw new NumberFormatException();
+				}
+			} catch (NumberFormatException error) {
+				JOptionPane.showMessageDialog(ventana, "N debe ser un entero mayor que cero.",
+						"Valor no válido", JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+
+			botonEjecutar.setEnabled(false);
+			registro.setText("");
+			progreso.setValue(0);
+			progreso.setString("0 / 16 procesos");
+			new SwingWorker<Void, String>() {
+				private int procesosTerminados;
+
+				@Override
+				protected Void doInBackground() throws Exception {
+					Files.createDirectories(Path.of("datos-ejercicio-1"));
+					ejecutarProcesos(cantidad, linea -> publish(linea));
+					return null;
+				}
+
+				@Override
+				protected void process(List<String> lineas) {
+					for (String linea : lineas) {
+						registro.append(linea + System.lineSeparator());
+						if (linea.contains(" | ")) {
+							procesosTerminados++;
+							progreso.setValue(procesosTerminados);
+							progreso.setString(procesosTerminados + " / 16 procesos");
+						}
+					}
+					registro.setCaretPosition(registro.getDocument().getLength());
+				}
+
+				@Override
+				protected void done() {
+					botonEjecutar.setEnabled(true);
+					try {
+						get();
+					} catch (InterruptedException error) {
+						Thread.currentThread().interrupt();
+						JOptionPane.showMessageDialog(ventana, "La ejecución fue interrumpida.");
+					} catch (ExecutionException error) {
+						JOptionPane.showMessageDialog(ventana, error.getCause().getMessage(),
+								"Error de ejecución", JOptionPane.ERROR_MESSAGE);
+					}
+				}
+			}.execute();
+		});
+
+		ventana.setVisible(true);
+	}
+
+	private static void ejecutarProcesos(int cantidad, Consumer<String> registrar) throws IOException {
 
 		long inicioSerial = System.nanoTime();
-		Ejecuciones.serial(cantidad);
+		Ejecuciones.serial(cantidad, registrar);
 		long tiempoSerial = System.nanoTime() - inicioSerial;
 
 		long inicioParalelo = System.nanoTime();
-		Ejecuciones.paralela(cantidad);
+		Ejecuciones.paralela(cantidad, registrar);
 		long tiempoParalelo = System.nanoTime() - inicioParalelo;
 
 		double serialMs = tiempoSerial / 1_000_000.0;
 		double paraleloMs = tiempoParalelo / 1_000_000.0;
 		double speedup = (double) tiempoSerial / tiempoParalelo;
 		double eficiencia = speedup / HILOS * 100.0;
-		System.out.printf("Tiempo serial: %.3f ms%n", serialMs);
-		System.out.printf("Tiempo paralelo: %.3f ms%n", paraleloMs);
-		System.out.printf("Speedup: %.3f%n", speedup);
-		System.out.printf("Eficiencia: %.2f%%%n", eficiencia);
+		registrar.accept(String.format("Tiempo serial: %.3f ms", serialMs));
+		registrar.accept(String.format("Tiempo paralelo: %.3f ms", paraleloMs));
+		registrar.accept(String.format("Speedup: %.3f", speedup));
+		registrar.accept(String.format("Eficiencia: %.2f%%", eficiencia));
 	}
 }
 
@@ -166,45 +277,46 @@ class ProcesosArchivos {
 
 // Ejecuta los ocho procesos en orden o según el grafo de dependencias.
 class Ejecuciones {
-	static void serial(int cantidad) {
-		ejecutar("A", () -> ProcesosArchivos.procesoA(cantidad));
-		ejecutar("B", () -> ProcesosArchivos.procesoB(cantidad));
-		ejecutar("C", ProcesosArchivos::procesoC);
-		ejecutar("D", ProcesosArchivos::procesoD);
-		ejecutar("E", ProcesosArchivos::procesoE);
-		ejecutar("F", ProcesosArchivos::procesoF);
-		ejecutar("G", ProcesosArchivos::procesoG);
-		ejecutar("H", ProcesosArchivos::procesoH);
+	static void serial(int cantidad, Consumer<String> registrar) {
+		ejecutar("A", () -> ProcesosArchivos.procesoA(cantidad), registrar);
+		ejecutar("B", () -> ProcesosArchivos.procesoB(cantidad), registrar);
+		ejecutar("C", ProcesosArchivos::procesoC, registrar);
+		ejecutar("D", ProcesosArchivos::procesoD, registrar);
+		ejecutar("E", ProcesosArchivos::procesoE, registrar);
+		ejecutar("F", ProcesosArchivos::procesoF, registrar);
+		ejecutar("G", ProcesosArchivos::procesoG, registrar);
+		ejecutar("H", ProcesosArchivos::procesoH, registrar);
 	}
 
-	static void paralela(int cantidad) {
+	static void paralela(int cantidad, Consumer<String> registrar) {
 		ExecutorService executor = Executors.newFixedThreadPool(Main.HILOS);
 		try {
-			CompletableFuture<Void> procesoA = asincrono(executor, "A", () -> ProcesosArchivos.procesoA(cantidad));
-			CompletableFuture<Void> procesoB = asincrono(executor, "B", () -> ProcesosArchivos.procesoB(cantidad));
+			CompletableFuture<Void> procesoA = asincrono(executor, "A", () -> ProcesosArchivos.procesoA(cantidad), registrar);
+			CompletableFuture<Void> procesoB = asincrono(executor, "B", () -> ProcesosArchivos.procesoB(cantidad), registrar);
 			CompletableFuture<Void> procesoC = CompletableFuture.allOf(procesoA, procesoB)
-					.thenRunAsync(() -> ejecutar("C", ProcesosArchivos::procesoC), executor);
+					.thenRunAsync(() -> ejecutar("C", ProcesosArchivos::procesoC, registrar), executor);
 			CompletableFuture<Void> procesoD = procesoC.thenRunAsync(
-					() -> ejecutar("D", ProcesosArchivos::procesoD), executor);
+					() -> ejecutar("D", ProcesosArchivos::procesoD, registrar), executor);
 			CompletableFuture<Void> procesoE = procesoC.thenRunAsync(
-					() -> ejecutar("E", ProcesosArchivos::procesoE), executor);
+					() -> ejecutar("E", ProcesosArchivos::procesoE, registrar), executor);
 			CompletableFuture<Void> procesoF = procesoD.thenRunAsync(
-					() -> ejecutar("F", ProcesosArchivos::procesoF), executor);
+					() -> ejecutar("F", ProcesosArchivos::procesoF, registrar), executor);
 			CompletableFuture<Void> procesoG = procesoE.thenRunAsync(
-					() -> ejecutar("G", ProcesosArchivos::procesoG), executor);
+					() -> ejecutar("G", ProcesosArchivos::procesoG, registrar), executor);
 			CompletableFuture<Void> procesoH = CompletableFuture.allOf(procesoF, procesoG)
-					.thenRunAsync(() -> ejecutar("H", ProcesosArchivos::procesoH), executor);
+					.thenRunAsync(() -> ejecutar("H", ProcesosArchivos::procesoH, registrar), executor);
 			procesoH.join();
 		} finally {
 			executor.shutdown();
 		}
 	}
 
-	private static CompletableFuture<Void> asincrono(ExecutorService executor, String nodo, TareaArchivo tarea) {
-		return CompletableFuture.runAsync(() -> ejecutar(nodo, tarea), executor);
+	private static CompletableFuture<Void> asincrono(ExecutorService executor, String nodo, TareaArchivo tarea,
+			Consumer<String> registrar) {
+		return CompletableFuture.runAsync(() -> ejecutar(nodo, tarea, registrar), executor);
 	}
 
-	private static void ejecutar(String nodo, TareaArchivo tarea) {
+	private static void ejecutar(String nodo, TareaArchivo tarea, Consumer<String> registrar) {
 		long inicio = System.nanoTime();
 		try {
 			tarea.ejecutar();
@@ -212,7 +324,7 @@ class Ejecuciones {
 			throw new UncheckedIOException(error);
 		} finally {
 			double duracionMs = (System.nanoTime() - inicio) / 1_000_000.0;
-			System.out.printf("%s | %s | %.3f ms%n", nodo, Thread.currentThread().getName(), duracionMs);
+			registrar.accept(String.format("%s | %s | %.3f ms", nodo, Thread.currentThread().getName(), duracionMs));
 		}
 	}
 
