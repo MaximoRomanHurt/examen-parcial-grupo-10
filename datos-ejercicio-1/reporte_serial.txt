@@ -1,0 +1,31 @@
+REPORTE DE ANÁLISIS DE CONSUMO ELÉCTRICO
+Tipo de ejecución: SERIAL
+Tiempo total: 1590.606 ms
+
+Nodo A - Temperatura vs consumo:
+Correlación Pearson (temperaturaCelsius, consumoKwh): 0.8722
+Interpretación: relación lineal muy fuerte
+
+Nodo B - Personas vs consumo:
+Correlación Pearson (personas, consumoKwh): 0.9857
+Interpretación: relación lineal muy fuerte
+
+Nodo C - Variable principal detectada:
+personas
+
+Nodo D - Equipos encendidos vs consumo:
+Correlación Pearson (equiposEncendidos, consumoKwh): 0.9852
+Interpretación: relación lineal muy fuerte
+
+Nodo E - Humedad vs consumo:
+Correlación Pearson (humedadPorcentaje, consumoKwh): -0.7054
+Interpretación: relación lineal fuerte
+
+Nodo F - Recomendación sobre equipos:
+Los equipos encendidos presentan una relación fuerte con el consumo. Se recomienda programar el apagado automático de equipos no esenciales fuera del horario de trabajo.
+
+Nodo G - Recomendación sobre humedad:
+La humedad presenta una influencia importante. Se recomienda optimizar la ventilación y el control de humedad del edificio.
+
+Nodo H - Conclusión final:
+El análisis se realizó leyendo el dataset desde disco línea por línea. No se almacenó el dataset completo en memoria.
