@@ -1,6 +1,6 @@
 REPORTE DE ANÁLISIS DE CONSUMO ELÉCTRICO
 Tipo de ejecución: SERIAL
-Tiempo total: 1590.606 ms
+Tiempo total: 967.284 ms
 
 Nodo A - Temperatura vs consumo:
 Correlación Pearson (temperaturaCelsius, consumoKwh): 0.8722
